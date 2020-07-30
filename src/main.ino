@@ -111,7 +111,7 @@ void loop()
 //////////////////////////////////////////////
 
 /////////////////////////////////////////////
-////////////CSIRAZTATO///////////////////////
+////////////HEATER///////////////////////////
 boolean heating;
 void heater(float temp)
 {
@@ -138,7 +138,8 @@ void heater_start()
 }
 void heater_stop()  
 {
-  /*we use this method so we dont need a switch transistor to switch of the relay input, 
+  /*
+  We use this method so we dont need a switch transistor to switch of the relay input, 
   we simple let the heater's pull-up to do this work. This way, we save up on hardware, but
   be carefull with soldering the relay. If you get a short between relay_5V0 and relay_input,
   that can feed 5V current to the esp8266, damaging the used pin (been there done that).
@@ -150,7 +151,7 @@ void heater_stop()
   GsheetPost(log_sheet, "Heater stop");
 }
 
-////////////CSIRAZTATO///////////////////////
+////////////HEATER///////////////////////////
 /////////////////////////////////////////////
 
 //////////////////////////////////////////////
@@ -233,8 +234,30 @@ float dsfunc()
 
 /////////////////////////////////////////////
 ////////////HTTPUPDATE////////////////////////
-void updateFunc(String Name, String Version) //TODO: documentation
+void updateFunc(String Name, String Version) 
 {
+
+  /*
+  We have a custom update server, you can find the repo link in the readme for it.
+      Scenario: There is a new version
+        Given the server has a folder with binary named 'test'
+        And it has a binary with version 0_1
+        When I make a request with name: 'test' and version: '0_0'
+        Then I get a response: '/static/bin/test/0_1.bin'
+
+    Scenario: There is no new version
+        Given the server has a folder with binary named 'test'
+        And it has a binary with version 0_1
+        When I make a request with name: 'test' and version: '0_1'
+        Then I get a response: 'update not needed'
+
+    Scenario: There is no such device name
+        Given the server doesn't have a folder with name: 'notexist'
+        And it has a binary with version 0_1
+        When I make a request with name: 'notexist' and version: '0_0'
+        Then I get a response with status code 404
+  */
+
   HTTPClient http;
 
   String url = update_server + "/check?" + "name=" + Name + "&ver=" + Version;
@@ -273,8 +296,11 @@ void updateFunc(String Name, String Version) //TODO: documentation
   }
 }
 
-void httpUpdateFunc(String update_url) //this is from the core example
+void httpUpdateFunc(String update_url) 
 {
+  
+  //this is from the core example
+
   if ((WiFiMulti.run() == WL_CONNECTED))
   {
 
@@ -468,15 +494,18 @@ String POSTTask(String url,  String payload)
 
 void getconfig()
 {
-  //TODO: documentation
+  /*
+  The config data is held by the google spreadsheet. You should find a link in the readme
+  for the google apps script code which processes the spreadsheet.
+  The script search for a cell in the config sheet with the same string as the http parameter, then gives back the value of the cell right next to it. 
+  */
   const size_t capacity = JSON_OBJECT_SIZE(5) + 200;
   DynamicJsonDocument doc(capacity);
   String baseurl = String(F("https://script.google.com/macros/s/")) + String(GScriptId) + "/exec?";
   const String my_temp_target=name+"_"+"temp_target";
   const String my_temp_start=name+"_"+"indit";
   const String my_heating_stop=name+"_"+"stop";
-  const String params = "pinginterval=0&update_interval=0&"+my_temp_target+"=0&"+my_temp_start+"=0&"+my_heating_stop+"=0"; //TODO: update the sheets
-
+  const String params = "pinginterval=0&update_interval=0&"+my_temp_target+"=0&"+my_temp_start+"=0&"+my_heating_stop+"=0";
  const String url = baseurl + params;
   String response = GETTask(url);
 
