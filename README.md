@@ -37,3 +37,5 @@ I thought this shouldn't be that hard to automate, father should get enough slee
 A python flask api server which manages the updates.
 
 #### The repos included in this project
+* https://github.com/klucsik/thermostat
+* https://github.com/klucsik/arduino-webupdate-service
