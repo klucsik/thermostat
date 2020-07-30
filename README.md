@@ -39,3 +39,4 @@ A python flask api server which manages the updates.
 #### The repos included in this project
 * https://github.com/klucsik/thermostat
 * https://github.com/klucsik/arduino-webupdate-service
+* https://gist.github.com/klucsik/da530b259c3476f6f1b3bd5e1f71a632
