@@ -5,7 +5,7 @@ They capable of acquiring configuration from a google spreadsheet, report the me
 ## Hardware
 mcu: esp8266 chip in weemos d2 board
 temp sensor: ds18b20 on OneWire protocoll (hooked up on D6).
-hating controll: aA 10A relay module hooked up to a digital pin (D7).
+heating controll: aA 10A relay module hooked up to a digital pin (D7).
 
 ## Software
 I used platformIO for development, the project codes can be found in src/. There is no automated tests yet.
@@ -22,7 +22,7 @@ After that, the young seedlings (around 2000 pieces) moves to the greenhouse. Th
 I thought this shouldn't be that hard to automate, father should get enough sleep, so I started to learn building sensors, switching relays, collectiong and processing data. And code.
 
 ### The requirements
-* The seedlings can't bee freeze to death.
+* The seedlings can't be freeze to death.
 * If some part of the system is fails, the others should work normally
 * If some part is failing, there should be an alarm
 * Father needs to see the actual data in the house (~100m away from the greenhouse)
@@ -32,9 +32,9 @@ I thought this shouldn't be that hard to automate, father should get enough slee
  Built around the esp8266 board and the arduino framework, there is 3 thermostat with different settings:
  * One for the "reverse refigerator" for the germination
  * Two in the greenhouse, one for the whole greenhouse, and the other one is for a smaller portion of it.
- Built around the esp8266 and a simple led display and a speaker, the dispay and alarm unit in the house
- A google spreadsheet  which serves as a backend, holds the data and the configuration values
-A python flask api server which manages the updates.
+ Built around the esp8266 and a simple led display and a speaker, the display and alarm unit is in the house
+ A google spreadsheet which serves as a backend, holds the data and the configuration values
+ A python flask api server which manages the updates.
 
 #### The repos included in this project
 * https://github.com/klucsik/thermostat
