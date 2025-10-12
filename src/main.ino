@@ -16,7 +16,7 @@ Secrets sec;
 //////////////////////////////////////////////
 ////////////CONFIG////////////////////////////
 static String name = conf.name; 
-static String ver = "2_0";              //diff to 1_10: update deps, switch gsheet to influxdb
+static String ver = "2_1";
 
 //value for these configkeys will be updated from InfluxDB bucket 'noszlop', see getconfig()
 long pinginterval=1; //the main loop interval, sec
