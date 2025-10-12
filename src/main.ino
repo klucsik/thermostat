@@ -278,8 +278,6 @@ void updateFunc(String Name, String Version)
     USE_SERIAL.print("[HTTP] GET...\n");
     // start connection and send HTTP header
     int httpCode = http.GET();
-    delay(10000); //wait for bootup of the server
-    httpCode = http.GET();
     // httpCode will be negative on error
     if (httpCode > 0)
     {
@@ -560,28 +558,3 @@ void getconfig()
 
 ////////////GETCONFIG/////////////////////////
 //////////////////////////////////////////////
-
-//////////////////////////////////////////////
-////////////SETCONFIG/////////////////////////
-
-void setconfig(String field, float value)
-{
-  /*
-  Helper function to write config values to InfluxDB.
-  Usage: setconfig("temp_target", 25.5);
-         setconfig("pinginterval", 10);
-  */
-  Point config_point("config");
-  config_point.addTag("name", name);
-  config_point.addField(field, value);
-  
-  if (influx_client.writePoint(config_point)) {
-    USE_SERIAL.println("Config written: " + field + " = " + String(value));
-  } else {
-    USE_SERIAL.println("Failed to write config: " + field);
-  }
-}
-
-////////////SETCONFIG/////////////////////////
-//////////////////////////////////////////////
-
