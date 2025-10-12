@@ -1,3 +1,14 @@
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
+#include <ESP8266HTTPClient.h>
+#include <TimeLib.h>
+#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
+#include <InfluxDbClient.h>
+#include <OneWire.h>
+
 #include "config.h" //change to change envrionment
 Config conf;
 #include "secrets.h"
@@ -5,11 +16,11 @@ Secrets sec;
 //////////////////////////////////////////////
 ////////////CONFIG////////////////////////////
 static String name = conf.name; 
-static String ver = "1_10";
+static String ver = "2_0";              //diff to 1_10: update deps, switch gsheet to influxdb
 
-//value for these configkeys will be updated from google sheets config sheet, see getconfig()
-int pinginterval=1; //the main loop interval, sec
-int update_interval=5; //pinginterval*update_interval = how often check the update server for
+//value for these configkeys will be updated from InfluxDB bucket 'noszlop', see getconfig()
+long pinginterval=1; //the main loop interval, sec
+long update_interval=5; //pinginterval*update_interval = how often check the update server for
 float temp_target = conf.temp_target; // The heater (relay module) will switch off at greater than this temperature
 float heating_start = conf.heating_start; //The heater (relay module) will switch on at lesser than this temperature 
 
@@ -18,27 +29,20 @@ const String update_server = sec.update_server; //at this is url is the python f
 
 #define USE_SERIAL Serial
 
-const String GScriptId = sec.gID; //This is the secret ID of the Google script app which connects to the Google Spreadsheets
-const String data_sheet = conf.data_sheet; //name of the sheet on the Spreadsheet where the data will be logged
-const String log_sheet = conf.log_sheet; //name of the sheet on the Spreadsheet where the events will be logged
-const String discord_chanel = sec.discord_chanel; //a discord channel webhook, we send startup messages there
 #define ONE_WIRE_BUS D6
 #define RELAYPIN D7
+
+#define INFLUXDB_ORG "influxdata"
+// InfluxDB 2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
+#define INFLUXDB_BUCKET "noszlop"
+InfluxDBClient influx_client(sec.influx_url, INFLUXDB_ORG, INFLUXDB_BUCKET, sec.influx_token);
+Point influxdb_line(conf.name); //measurement name
 ////////////CONFIG////////////////////////////
 //////////////////////////////////////////////
 
-#include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
-#include <ESP8266HTTPClient.h>
-#include <TimeLib.h>
-#include <ArduinoJson.h>
-#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 ESP8266WiFiMulti WiFiMulti;
 WiFiClient client;
-#include <OneWire.h>
+
 OneWire ds(ONE_WIRE_BUS);
 
 //////////////////////////////////////////////
@@ -67,8 +71,10 @@ void setup()
   wifiManager.setTimeout(300);
   wifiManager.autoConnect("mocsigoncska_ap");
   USE_SERIAL.println("connected...yeey :)");
-
-  GsheetPost(F("log"), "startup: " + name + " " + ver); // TODO: extract the main log sheetname to the config
+  influxdb_line.addTag("status", "startup");
+  influxdb_line.addField("name", name);
+  influxdb_line.addField("version", ver);
+  influx_client.writePoint(influxdb_line);
   discordPost("startup: " + name + " " + ver);
 
   getconfig();
@@ -105,8 +111,10 @@ void loop()
     j = 0;
     updateFunc(name, ver);
   }
+  influxdb_line.addField("temp", temp);
+  USE_SERIAL.println("Writing to InfluxDB: " + influxdb_line.toLineProtocol());
+  influx_client.writePoint(influxdb_line);
 }
-
 ////////////LOOP ////////////////////////////
 //////////////////////////////////////////////
 
@@ -134,7 +142,7 @@ void heater_start()
   heating = true;
   pinMode(RELAYPIN, OUTPUT);
   digitalWrite(RELAYPIN, LOW);
-  GsheetPost(log_sheet, "Heater start");
+  influxdb_line.addField("event", "Heater start");
 }
 void heater_stop()  
 {
@@ -148,7 +156,7 @@ void heater_stop()
   heating = false;
   digitalWrite(RELAYPIN, HIGH);
   pinMode(RELAYPIN, INPUT);
-  GsheetPost(log_sheet, "Heater stop");
+  influxdb_line.addField("event", "Heater stop");
 }
 
 ////////////HEATER///////////////////////////
@@ -226,7 +234,6 @@ float dsfunc()
   USE_SERIAL.println(result);
   String datastring = String(result) + ";" + String(heating);
   datastring.replace(".",","); //this way, the sheet gets the correct format (and not use date)
-  GsheetPost(data_sheet, datastring);
   return result;
 }
 ////////////ds18b20////////////////////////////
@@ -366,20 +373,12 @@ void update_error(int err)
 #include <ESP8266httpUpdate.h>
 #include <ESP8266HTTPClient.h>
 
-void GsheetPost(String sheet_name, String datastring)
-{
-  USE_SERIAL.println(F("POST to spreadsheet:"));
-  String url = String(F("https://script.google.com/macros/s/")) + String(GScriptId) + "/exec";
-  String payload = String("{\"command\": \"appendRow\", \  \"sheet_name\": \"") + sheet_name + "\", \ \"values\": " + "\"" + datastring + "\"}";
-
-  USE_SERIAL.println(POSTTask(url, payload));
-};
 
 void discordPost(String message)
 {
 
   String payload = "{\"content\": \"" + message + "\"}";
-  String url = discord_chanel;
+  String url = sec.discord_url;
   USE_SERIAL.println(POSTTask(url, payload));
 };
 
@@ -388,7 +387,6 @@ String GETTask(String url)
   std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
   client->setInsecure(); //This will set the http connection to insecure! This is not advised, but I have found no good way to use real SSL, and my application doesn't need the added security
   HTTPClient https;
-  https.setFollowRedirects(true); //this is needed for the Google backend, which always redirects
   if (https.begin(*client, url))
   {
     USE_SERIAL.print(F("[HTTPS] GET "));
@@ -447,7 +445,6 @@ String POSTTask(String url,  String payload)
     USE_SERIAL.print(" --> ");
     USE_SERIAL.println(payload);
     https.addHeader(F("Content-Type"), F("application/json"));
-    https.setFollowRedirects(true);
 
     int httpCode = https.POST(payload);
 
@@ -495,35 +492,76 @@ String POSTTask(String url,  String payload)
 void getconfig()
 {
   /*
-  The config data is held by the google spreadsheet. You should find a link in the readme
-  for the google apps script code which processes the spreadsheet.
-  The script search for a cell in the config sheet with the same string as the http parameter, then gives back the value of the cell right next to it. 
+  The config data is now retrieved from InfluxDB bucket 'noszlop'.
+  We query for the latest config values using the device name as a tag filter.
+  Config values are stored as separate measurements: pinginterval, update_interval, temp_target, heating_start
   */
-  const size_t capacity = JSON_OBJECT_SIZE(5) + 200;
-  DynamicJsonDocument doc(capacity);
-  String baseurl = String(F("https://script.google.com/macros/s/")) + String(GScriptId) + "/exec?";
-  const String my_temp_target=name+"_"+"temp_target";
-  const String my_temp_start=name+"_"+"indit";
-  const String my_heating_stop=name+"_"+"stop";
-  const String params = "pinginterval=0&update_interval=0&"+my_temp_target+"=0&"+my_temp_start+"=0&"+my_heating_stop+"=0";
- const String url = baseurl + params;
-  String response = GETTask(url);
-
-  if (response.length() > 1)
-  {
-    deserializeJson(doc, response);
-
-    pinginterval = doc["pinginterval"];
-    update_interval = doc["update_interval"];
-    temp_target = doc.getMember(my_temp_target);
-    heating_start = doc.getMember(my_temp_start);
-
-    USE_SERIAL.println("Config got: \n pinginterval = " + String(pinginterval));
-    USE_SERIAL.println(my_temp_target + " = " + temp_target);
-    USE_SERIAL.println(my_temp_start + " = " + heating_start);
+  
+  USE_SERIAL.println("Getting config from InfluxDB...");
+  
+  // Query for pinginterval
+  String query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"pinginterval\") |> last()";
+  FluxQueryResult result = influx_client.query(query);
+  if (result.next()) {
+    pinginterval = result.getValueByName("_value").getLong();
+    USE_SERIAL.println("Config got pinginterval = " + String(pinginterval));
   }
+  result.close();
+  
+  // Query for update_interval
+  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"update_interval\") |> last()";
+  result = influx_client.query(query);
+  if (result.next()) {
+    update_interval = result.getValueByName("_value").getLong();
+    USE_SERIAL.println("Config got update_interval = " + String(update_interval));
+  }
+  result.close();
+  
+  // Query for temp_target
+  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"temp_target\") |> last()";
+  result = influx_client.query(query);
+  if (result.next()) {
+    temp_target = result.getValueByName("_value").getDouble();
+    USE_SERIAL.println("Config got temp_target = " + String(temp_target));
+  }
+  result.close();
+  
+  // Query for heating_start
+  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"heating_start\") |> last()";
+  result = influx_client.query(query);
+  if (result.next()) {
+    heating_start = result.getValueByName("_value").getDouble();
+    USE_SERIAL.println("Config got heating_start = " + String(heating_start));
+  }
+  result.close();
+  
+  USE_SERIAL.println("Config retrieval completed from InfluxDB");
 }
 
 ////////////GETCONFIG/////////////////////////
+//////////////////////////////////////////////
+
+//////////////////////////////////////////////
+////////////SETCONFIG/////////////////////////
+
+void setconfig(String field, float value)
+{
+  /*
+  Helper function to write config values to InfluxDB.
+  Usage: setconfig("temp_target", 25.5);
+         setconfig("pinginterval", 10);
+  */
+  Point config_point("config");
+  config_point.addTag("name", name);
+  config_point.addField(field, value);
+  
+  if (influx_client.writePoint(config_point)) {
+    USE_SERIAL.println("Config written: " + field + " = " + String(value));
+  } else {
+    USE_SERIAL.println("Failed to write config: " + field);
+  }
+}
+
+////////////SETCONFIG/////////////////////////
 //////////////////////////////////////////////
 
