@@ -501,6 +501,14 @@ void getconfig()
   */
   
   USE_SERIAL.println("Getting config from InfluxDB...");
+
+  //Check InfluxDB connection
+  if (!influx_client.validateConnection())
+  {
+    USE_SERIAL.print("InfluxDB connection failed: ");
+    USE_SERIAL.println(influx_client.getLastErrorMessage());
+    return;
+  }
   
   // Query for pinginterval
   String query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"pinginterval\") |> last()";
