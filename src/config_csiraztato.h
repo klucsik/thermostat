@@ -2,8 +2,7 @@
  class Config{
      public:
        const String name = "noszlop_csiraztato";
-       const String data_sheet = "Csiráztató";
-       const String log_sheet = "csiráztató_log";
-       const float temp_target = 28;
-       const float heating_start = 25;
+       const float temp_target = 29;
+       const float heating_start = 27;
+       const boolean invert_heating = false; // Invert heating logic
  };
