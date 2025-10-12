@@ -71,12 +71,13 @@ void setup()
   wifiManager.setTimeout(300);
   wifiManager.autoConnect("mocsigoncska_ap");
   USE_SERIAL.println("connected...yeey :)");
-  influxdb_line.addTag("status", "startup");
-  influxdb_line.addField("name", name);
-  influxdb_line.addField("version", ver);
+  influxdb_line.addTag("name", name);
+  influxdb_line.addTag("version", ver);
+  influxdb_line.addField("event", "Startup");
   influx_client.writePoint(influxdb_line);
   discordPost("startup: " + name + " " + ver);
-
+  influx_client.writePoint(influxdb_line);
+  influxdb_line.clearFields();
   getconfig();
   updateFunc(name, ver);
 }
@@ -114,6 +115,7 @@ void loop()
   influxdb_line.addField("temp", temp);
   USE_SERIAL.println("Writing to InfluxDB: " + influxdb_line.toLineProtocol());
   influx_client.writePoint(influxdb_line);
+  influxdb_line.clearFields();
 }
 ////////////LOOP ////////////////////////////
 //////////////////////////////////////////////
@@ -268,7 +270,7 @@ void updateFunc(String Name, String Version)
   HTTPClient http;
 
   String url = update_server + "/check?" + "name=" + Name + "&ver=" + Version;
-  USE_SERIAL.print("[HTTP] check at " + url);
+  USE_SERIAL.print("[HTTP] check at " + url + "\n");
   if (http.begin(client, url))
   { // HTTP
 
