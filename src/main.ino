@@ -22,7 +22,7 @@ static String ver = "2_1";
 long pinginterval=1; //the main loop interval, sec
 long update_interval=5; //pinginterval*update_interval = how often check the update server for
 float temp_target = conf.temp_target; // The heater (relay module) will switch off at greater than this temperature
-float heating_start = conf.heating_start; //The heater (relay module) will switch on at lesser than this temperature 
+float heating_start_temp = conf.heating_start_temp; //The heater (relay module) will switch on at lesser than this temperature 
 boolean invert_heating = conf.invert_heating; // Invert heating logic
 
 
@@ -127,7 +127,7 @@ boolean heating;
 void heater(float temp)
 {
   USE_SERIAL.println("---------- " + String(temp) + " -> " + String(heating));
-  if (temp < heating_start && heating == false)
+  if (temp < heating_start_temp && heating == false)
   {
     
     heater_start();
@@ -495,7 +495,7 @@ void getconfig()
   /*
   The config data is now retrieved from InfluxDB bucket 'noszlop'.
   We query for the latest config values using the device name as a tag filter.
-  Config values are stored as separate measurements: pinginterval, update_interval, temp_target, heating_start
+  Config values are stored as separate measurements: pinginterval, update_interval, temp_target, heating_start_temp
   */
   
   USE_SERIAL.println("Getting config from InfluxDB...");
@@ -535,12 +535,12 @@ void getconfig()
   }
   result.close();
   
-  // Query for heating_start
-  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"heating_start\") |> last()";
+  // Query for heating_start_temp
+  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"heating_start_temp\") |> last()";
   result = influx_client.query(query);
   if (result.next()) {
-    heating_start = result.getValueByName("_value").getDouble();
-    USE_SERIAL.println("Config got heating_start = " + String(heating_start));
+    heating_start_temp = result.getValueByName("_value").getDouble();
+    USE_SERIAL.println("Config got heating_start_temp = " + String(heating_start_temp));
   }
   result.close();
 
