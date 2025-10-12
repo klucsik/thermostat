@@ -23,6 +23,7 @@ long pinginterval=1; //the main loop interval, sec
 long update_interval=5; //pinginterval*update_interval = how often check the update server for
 float temp_target = conf.temp_target; // The heater (relay module) will switch off at greater than this temperature
 float heating_start = conf.heating_start; //The heater (relay module) will switch on at lesser than this temperature 
+boolean invert_heating = conf.invert_heating; // Invert heating logic
 
 
 const String update_server = sec.update_server; //at this is url is the python flask update server, which I wrote
@@ -143,7 +144,7 @@ void heater_start()
   USE_SERIAL.println("Heater start!");
   heating = true;
   pinMode(RELAYPIN, OUTPUT);
-  digitalWrite(RELAYPIN, LOW);
+  digitalWrite(RELAYPIN, invert_heating ? 1 : 0);
   influxdb_line.addField("event", "Heater start");
 }
 void heater_stop()  
@@ -156,7 +157,7 @@ void heater_stop()
   */
   USE_SERIAL.println("Heater stop!" );
   heating = false;
-  digitalWrite(RELAYPIN, HIGH);
+  digitalWrite(RELAYPIN, invert_heating ? 0 : 1);
   pinMode(RELAYPIN, INPUT);
   influxdb_line.addField("event", "Heater stop");
 }
@@ -536,7 +537,16 @@ void getconfig()
     USE_SERIAL.println("Config got heating_start = " + String(heating_start));
   }
   result.close();
-  
+
+  // Query for invert_heating
+  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"invert_heating\") |> last()";
+  result = influx_client.query(query);
+  if (result.next()) {
+    invert_heating = result.getValueByName("_value").getBool();
+    USE_SERIAL.println("Config got invert_heating = " + String(invert_heating));
+  }
+  result.close();
+
   USE_SERIAL.println("Config retrieval completed from InfluxDB");
 }
 
