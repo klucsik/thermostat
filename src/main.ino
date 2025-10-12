@@ -16,7 +16,7 @@ Secrets sec;
 //////////////////////////////////////////////
 ////////////CONFIG////////////////////////////
 static String name = conf.name; 
-static String ver = "2_1";
+static String ver = "2_2";
 
 //value for these configkeys will be updated from InfluxDB bucket 'noszlop', see getconfig()
 long pinginterval=1; //the main loop interval, sec
