@@ -16,7 +16,7 @@ Secrets sec;
 //////////////////////////////////////////////
 ////////////CONFIG////////////////////////////
 static String name = conf.name; 
-static String ver = "2_2";
+static String ver = "2_3";
 
 //value for these configkeys will be updated from InfluxDB bucket 'noszlop', see getconfig()
 long pinginterval=1; //the main loop interval, sec
@@ -486,9 +486,82 @@ String POSTTask(String url,  String payload)
 //////////////////////////////////////////////
 
 //////////////////////////////////////////////
+////////////CONFIG QUERY HELPERS//////////////
+
+/**
+ * Helper method to query a long/integer config value from InfluxDB
+ * @param fieldName The config field name to query
+ * @param value Reference to the variable to update
+ * @return true if value was found and updated, false otherwise
+ */
+boolean queryConfigLong(String fieldName, long &value)
+{
+  String query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"" + fieldName + "\") |> last()";
+  FluxQueryResult result = influx_client.query(query);
+  
+  if (result.next()) {
+    value = result.getValueByName("_value").getLong();
+    USE_SERIAL.println("Config got " + fieldName + " = " + String(value));
+    result.close();
+    return true;
+  }
+  
+  result.close();
+  USE_SERIAL.println("Config field " + fieldName + " not found");
+  return false;
+}
+
+/**
+ * Helper method to query a double/float config value from InfluxDB
+ * @param fieldName The config field name to query
+ * @param value Reference to the variable to update
+ * @return true if value was found and updated, false otherwise
+ */
+boolean queryConfigDouble(String fieldName, float &value)
+{
+  String query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"" + fieldName + "\") |> last()";
+  FluxQueryResult result = influx_client.query(query);
+  
+  if (result.next()) {
+    value = result.getValueByName("_value").getDouble();
+    USE_SERIAL.println("Config got " + fieldName + " = " + String(value));
+    result.close();
+    return true;
+  }
+  
+  result.close();
+  USE_SERIAL.println("Config field " + fieldName + " not found");
+  return false;
+}
+
+/**
+ * Helper method to query a boolean config value from InfluxDB
+ * @param fieldName The config field name to query
+ * @param value Reference to the variable to update
+ * @return true if value was found and updated, false otherwise
+ */
+boolean queryConfigBool(String fieldName, boolean &value)
+{
+  String query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"" + fieldName + "\") |> last()";
+  FluxQueryResult result = influx_client.query(query);
+  
+  if (result.next()) {
+    value = result.getValueByName("_value").getBool();
+    USE_SERIAL.println("Config got " + fieldName + " = " + String(value));
+    result.close();
+    return true;
+  }
+  
+  result.close();
+  USE_SERIAL.println("Config field " + fieldName + " not found");
+  return false;
+}
+
+////////////CONFIG QUERY HELPERS//////////////
+//////////////////////////////////////////////
+
+//////////////////////////////////////////////
 ////////////GETCONFIG/////////////////////////
-
-
 
 void getconfig()
 {
@@ -500,7 +573,7 @@ void getconfig()
   
   USE_SERIAL.println("Getting config from InfluxDB...");
 
-  //Check InfluxDB connection
+  // Check InfluxDB connection
   if (!influx_client.validateConnection())
   {
     USE_SERIAL.print("InfluxDB connection failed: ");
@@ -508,50 +581,16 @@ void getconfig()
     return;
   }
   
-  // Query for pinginterval
-  String query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"pinginterval\") |> last()";
-  FluxQueryResult result = influx_client.query(query);
-  if (result.next()) {
-    pinginterval = result.getValueByName("_value").getLong();
-    USE_SERIAL.println("Config got pinginterval = " + String(pinginterval));
-  }
-  result.close();
+  // Query long/integer config values
+  queryConfigLong("pinginterval", pinginterval);
+  queryConfigLong("update_interval", update_interval);
   
-  // Query for update_interval
-  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"update_interval\") |> last()";
-  result = influx_client.query(query);
-  if (result.next()) {
-    update_interval = result.getValueByName("_value").getLong();
-    USE_SERIAL.println("Config got update_interval = " + String(update_interval));
-  }
-  result.close();
+  // Query float/double config values
+  queryConfigDouble("temp_target", temp_target);
+  queryConfigDouble("heating_start_temp", heating_start_temp);
   
-  // Query for temp_target
-  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"temp_target\") |> last()";
-  result = influx_client.query(query);
-  if (result.next()) {
-    temp_target = result.getValueByName("_value").getDouble();
-    USE_SERIAL.println("Config got temp_target = " + String(temp_target));
-  }
-  result.close();
-  
-  // Query for heating_start_temp
-  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"heating_start_temp\") |> last()";
-  result = influx_client.query(query);
-  if (result.next()) {
-    heating_start_temp = result.getValueByName("_value").getDouble();
-    USE_SERIAL.println("Config got heating_start_temp = " + String(heating_start_temp));
-  }
-  result.close();
-
-  // Query for invert_heating
-  query = "from(bucket: \"noszlop\") |> range(start: -10y) |> filter(fn: (r) => r._measurement == \"config\" and r.name == \"" + name + "\" and r._field == \"invert_heating\") |> last()";
-  result = influx_client.query(query);
-  if (result.next()) {
-    invert_heating = result.getValueByName("_value").getBool();
-    USE_SERIAL.println("Config got invert_heating = " + String(invert_heating));
-  }
-  result.close();
+  // Query boolean config values
+  queryConfigBool("invert_heating", invert_heating);
 
   USE_SERIAL.println("Config retrieval completed from InfluxDB");
 }
