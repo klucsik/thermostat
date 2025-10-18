@@ -76,6 +76,7 @@ void setup()
   wifiManager.autoConnect("mocsigoncska_ap");
   USE_SERIAL.println("connected...yeey :)");
 
+
   // Print WiFi diagnostics
   USE_SERIAL.print("IP address: ");
   USE_SERIAL.println(WiFi.localIP());
@@ -86,6 +87,41 @@ void setup()
   USE_SERIAL.print("Signal strength (RSSI): ");
   USE_SERIAL.print(WiFi.RSSI());
   USE_SERIAL.println(" dBm");
+
+  // Test DNS resolution
+  USE_SERIAL.println("Testing DNS resolution...");
+  IPAddress testIP;
+  if (WiFi.hostByName("discord.com", testIP)) {
+    USE_SERIAL.print("discord.com resolved to: ");
+    USE_SERIAL.println(testIP);
+  } else {
+    USE_SERIAL.println("DNS resolution failed for discord.com! Set DNS to google ones");
+    // Set custom DNS servers (Google DNS) to fix DNS resolution issues
+    // Primary: 8.8.8.8, Secondary: 8.8.4.4
+    IPAddress dns1(8, 8, 8, 8);
+    IPAddress dns2(1, 1, 1, 1);
+    WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), dns1, dns2);
+    if (WiFi.hostByName("discord.com", testIP)) {
+      USE_SERIAL.print("discord.com resolved to: ");
+      USE_SERIAL.println(testIP);
+    } else {
+      USE_SERIAL.println("DNS resolution failed for discord.com! uh-oh");
+    }
+      // Print WiFi diagnostics
+  USE_SERIAL.print("IP address: ");
+  USE_SERIAL.println(WiFi.localIP());
+  USE_SERIAL.print("Gateway: ");
+  USE_SERIAL.println(WiFi.gatewayIP());
+  USE_SERIAL.print("DNS: ");
+  USE_SERIAL.println(WiFi.dnsIP());
+  USE_SERIAL.print("Signal strength (RSSI): ");
+  USE_SERIAL.print(WiFi.RSSI());
+  USE_SERIAL.println(" dBm");
+  }
+
+  // Configure WiFi settings for better stability
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
 
   influxdb_line.addTag("name", name);
   influxdb_line.addTag("version", ver);
