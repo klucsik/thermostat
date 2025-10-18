@@ -16,7 +16,7 @@ Secrets sec;
 //////////////////////////////////////////////
 ////////////CONFIG////////////////////////////
 static String name = conf.name; 
-static String ver = "2_3";
+static String ver = "2_4";
 
 //value for these configkeys will be updated from InfluxDB bucket 'noszlop', see getconfig()
 long pinginterval=1; //the main loop interval, sec
@@ -68,10 +68,25 @@ void setup()
   delay(1000);
   heater_stop();
 
+  WiFiMulti.addAP(sec.known_ap.c_str(), sec.known_ap_pw.c_str());
+  WiFiMulti.run();
+
   WiFiManager wifiManager;
   wifiManager.setTimeout(300);
   wifiManager.autoConnect("mocsigoncska_ap");
   USE_SERIAL.println("connected...yeey :)");
+
+  // Print WiFi diagnostics
+  USE_SERIAL.print("IP address: ");
+  USE_SERIAL.println(WiFi.localIP());
+  USE_SERIAL.print("Gateway: ");
+  USE_SERIAL.println(WiFi.gatewayIP());
+  USE_SERIAL.print("DNS: ");
+  USE_SERIAL.println(WiFi.dnsIP());
+  USE_SERIAL.print("Signal strength (RSSI): ");
+  USE_SERIAL.print(WiFi.RSSI());
+  USE_SERIAL.println(" dBm");
+
   influxdb_line.addTag("name", name);
   influxdb_line.addTag("version", ver);
   influxdb_line.addField("event", "Startup");
@@ -93,7 +108,17 @@ int j = 0;
 void loop()
 {
   USE_SERIAL.println("loop...");
-  float temp = dsfunc();
+  float temp_sum = 0;
+  int valid_count = 0;
+  for (int k = 0; k < 3; k++) {
+    float t = dsfunc();
+    if (t > -90) {
+      temp_sum += t;
+      valid_count++;
+    }
+    delay(100); // small delay between readings
+  }
+  float temp = (valid_count > 0) ? (temp_sum / valid_count) : -100;
   if(temp>-80){
   heater(temp);
   }
