@@ -16,7 +16,7 @@ Secrets sec;
 //////////////////////////////////////////////
 ////////////CONFIG////////////////////////////
 static String name = conf.name; 
-static String ver = "2_4";
+static String ver = "2_5";
 
 //value for these configkeys will be updated from InfluxDB bucket 'noszlop', see getconfig()
 long pinginterval=1; //the main loop interval, sec
@@ -97,8 +97,7 @@ void setup()
   } else {
     USE_SERIAL.println("DNS resolution failed for discord.com! Set DNS to google ones");
     // Set custom DNS servers (Google DNS) to fix DNS resolution issues
-    // Primary: 8.8.8.8, Secondary: 8.8.4.4
-    IPAddress dns1(8, 8, 8, 8);
+    IPAddress dns1(1, 1, 1, 1);
     IPAddress dns2(1, 1, 1, 1);
     WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), dns1, dns2);
     if (WiFi.hostByName("discord.com", testIP)) {
